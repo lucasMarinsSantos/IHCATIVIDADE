@@ -127,7 +127,7 @@ def _get_llm():
     try:
         if os.path.exists(MODELO_PATH):
             from llama_cpp import Llama
-            _llm_instance = Llama(model_path=MODELO_PATH, n_ctx=4096, n_gpu_layers=-4, verbose=False)
+            _llm_instance = Llama(model_path=MODELO_PATH, n_ctx=8192, n_gpu_layers=-4, verbose=False)
             return _llm_instance
     except ImportError:
         return None
