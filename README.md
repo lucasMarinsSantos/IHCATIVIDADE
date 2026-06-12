@@ -1,107 +1,119 @@
 # BigONE
 
-Sistema local em Python que coleta promoções de hardware da Terabyte Shop, salva em banco de dados SQLite e permite pesquisa em linguagem natural sem precisar acessar o site a cada consulta.
+Buscador de ofertas de hardware focado na Terabyte Shop.
+
+## Sobre o Projeto
+
+BigONE é um sistema local em Python desenvolvido para coletar promoções e ofertas de hardware da Terabyte Shop, armazenando os dados em um banco de dados SQLite otimizado. O sistema permite buscas textuais utilizando FTS5 (Full-Text Search), processando consultas em linguagem natural. O sistema mantém os dados atualizados com uma rotina de cache diário, evitando acessos redundantes ao site original.
+
+### Funcionalidades
+
+- Busca textual em linguagem natural.
+- Web scraping de múltiplas categorias de hardware.
+- Armazenamento em banco de dados SQLite local.
+- Controle de cache com expiração de 24 horas.
+- Suporte opcional a modelo LLM local para interpretação de consultas.
+- Geração de estatísticas agregadas (preços médios, descontos, volumes por categoria).
+
+### Categorias Suportadas
+
+- Promoções
+- Placas de Vídeo
+- Processadores
+- Memórias RAM
+- SSDs
+- Placas-Mãe
 
 ---
 
-## O que o sistema faz
+## Arquitetura
 
-- Raspa as seções de promoções, placas de vídeo, processadores, memórias RAM, SSDs e placas-mãe da Terabyte Shop
-- Salva tudo localmente em SQLite com busca textual via FTS5
-- Atualiza os dados uma vez por dia (cache de 24 horas)
-- Interpreta buscas em linguagem natural usando regras e, opcionalmente, um modelo de linguagem local (LLM)
+O sistema é dividido nos seguintes componentes:
+
+- main.py: Ponto de entrada e interface CLI.
+- config.py: Definição de parâmetros e constantes globais.
+- database.py: Camada de persistência (SQLite).
+- scraper/: Módulo de coleta de dados web.
+- services/: Serviços de busca, controle de cache e integração de IA.
+- utils/: Funções utilitárias.
+
+---
+
+## Requisitos de Sistema
+
+- Python 3.10 ou superior.
+- Conexão com a internet para scraping inicial e (opcionalmente) download do modelo de IA.
 
 ---
 
 ## Instalação
 
-### 1. Criar e ativar o ambiente virtual
+1. Clone o repositório:
+```powershell
+git clone https://github.com/seu-usuario/IHCATIVIDADE.git
+cd IHCATIVIDADE
+```
 
+2. Crie e ative um ambiente virtual:
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-Se o PowerShell bloquear a execução de scripts:
-
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
-### 2. Instalar as dependências Python
-
-```powershell
-pip install -r requirements.txt
-```
-
-O `requirements.txt` deve conter:
-
-```
-requests
-beautifulsoup4
-urllib3
-huggingface-hub
-llama-cpp-python
-```
-
-### 3. Instalar o modelo de IA local (opcional)
-
-O modelo é usado para interpretar buscas em linguagem natural de forma mais precisa. É opcional, sem ele o sistema usa um parser de regras.
-
-**Tamanho do download: aproximadamente 700 MB. Ocorre somente uma vez.**
-
-Ao rodar o sistema pela primeira vez, ele vai perguntar:
-
-```
-Modelo de IA nao encontrado.
-Deseja baixar agora? (~700MB, ocorre so uma vez) [s/N]:
-```
-
-Digite `s` e aguarde. O modelo será salvo em `models/llama-3.2-1b-instruct-q4_k_m.gguf`.
-
-Para baixar manualmente antes de rodar o sistema:
-
-```powershell
-python -c "
-from huggingface_hub import hf_hub_download
-hf_hub_download(
-    repo_id='hugging-quants/Llama-3.2-1B-Instruct-Q4_K_M-GGUF',
-    filename='llama-3.2-1b-instruct-q4_k_m.gguf',
-    local_dir='models'
-)
-print('Modelo baixado.')
-"
-```
-
----
-
-## Como usar
-
+3. Execute a aplicação (as dependências principais serão instaladas automaticamente):
 ```powershell
 python main.py
 ```
 
-Na primeira execução:
-1. O banco de dados é criado automaticamente em `data/ofertas.db`
-2. O scraping é iniciado automaticamente (leva alguns minutos)
-3. O sistema entra no modo de pesquisa
+### Instalação de Suporte a IA Local (Opcional)
 
-Nas execuções seguintes:
-- Se os dados tiverem menos de 24 horas, entra direto na pesquisa
-- Se passaram mais de 24 horas, atualiza os dados antes de continuar
+Para habilitar a interpretação avançada de busca utilizando um modelo de linguagem local:
+
+```powershell
+pip install -r requirements-ia.txt
+```
+Requisito adicional: Compilador C++ (ex: Visual Studio Build Tools). O download inicial do modelo (~700MB) ocorrerá na primeira execução.
 
 ---
 
-## Pesquisando
+## Uso
 
-O sistema aceita linguagem natural. Exemplos:
+A interface CLI opera de forma interativa. Insira os termos de busca para recuperar resultados da base local. 
 
-```
-Pesquisar: rtx 4060
-Pesquisar: memoria ddr5 32gb ate 600 reais
-Pesquisar: ssd nvme 1tb 50% desconto
-Pesquisar: processador ryzen ate 800
-Pesquisar: top 5 placas de video
-```
+Exemplos de consultas suportadas:
+- rtx 4060
+- memoria ddr5 32gb ate 600 reais
+- ssd nvme 1tb 50% desconto
+- top 5 placas de video
+
+O interpretador de linguagem natural extrai automaticamente métricas como limite de resultados, faixa de preços e descontos mínimos.
+
+### Comandos Internos
+
+- stats: Exibe estatísticas consolidadas do banco de dados.
+- atualizar: Executa a rotina de scraping para renovar o banco de dados antes da expiração do cache.
+- ajuda: Exibe informações de uso.
+- sair: Finaliza o programa.
 
 ---
+
+## Configuração
+
+Parâmetros operacionais podem ser modificados no arquivo config.py. Variáveis principais:
+
+- CACHE_HORAS: Período de validade do banco de dados (padrão: 24).
+- REQUEST_TIMEOUT: Tempo limite de resposta HTTP (padrão: 15).
+- REQUEST_DELAY: Intervalo entre requisições subsequentes (padrão: 0.8).
+
+---
+
+## Solução de Problemas
+
+Falha de Conexão: Caso a coleta falhe, verifique a conexão com a rede e execute o comando atualizar no CLI.
+Erros de Instalação (IA): A instalação do módulo llama-cpp-python pode falhar sem os pacotes de desenvolvimento C++. A base do sistema funcionará normalmente sem este módulo.
+
+---
+
+## Licença
+
+Projeto desenvolvido para fins acadêmicos e educacionais.
